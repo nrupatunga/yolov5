@@ -6,6 +6,13 @@ Usage:
     $ python path/to/models/yolo.py --cfg yolov5s.yaml
 """
 
+from utils.torch_utils import (copy_attr, fuse_conv_and_bn, initialize_weights, model_info, scale_img, select_device,
+                               time_sync)
+from utils.plots import feature_visualization
+from utils.general import LOGGER, check_version, check_yaml, make_divisible, print_args
+from utils.autoanchor import check_anchor_order
+from models.experimental import *
+from models.common import *
 import argparse
 import sys
 from copy import deepcopy
@@ -17,13 +24,6 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
 
-from models.common import *
-from models.experimental import *
-from utils.autoanchor import check_anchor_order
-from utils.general import LOGGER, check_version, check_yaml, make_divisible, print_args
-from utils.plots import feature_visualization
-from utils.torch_utils import (copy_attr, fuse_conv_and_bn, initialize_weights, model_info, scale_img, select_device,
-                               time_sync)
 
 try:
     import thop  # for FLOPs computation

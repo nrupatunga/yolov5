@@ -10,6 +10,16 @@ Export:
     $ python path/to/export.py --weights yolov5s.pt --include saved_model pb tflite tfjs
 """
 
+from utils.general import LOGGER, make_divisible, print_args
+from utils.activations import SiLU
+from models.yolo import Detect
+from models.experimental import CrossConv, MixConv2d, attempt_load
+from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
+from tensorflow import keras
+import torch.nn as nn
+import torch
+import tensorflow as tf
+import numpy as np
 import argparse
 import logging
 import sys
@@ -21,18 +31,6 @@ ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
-
-import numpy as np
-import tensorflow as tf
-import torch
-import torch.nn as nn
-from tensorflow import keras
-
-from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
-from models.experimental import CrossConv, MixConv2d, attempt_load
-from models.yolo import Detect
-from utils.activations import SiLU
-from utils.general import LOGGER, make_divisible, print_args
 
 
 class TFBN(keras.layers.Layer):

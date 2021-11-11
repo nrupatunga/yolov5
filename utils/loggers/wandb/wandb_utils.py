@@ -1,5 +1,7 @@
 """Utilities and tools for tracking runs with Weights & Biases."""
 
+from utils.general import check_dataset, check_file
+from utils.datasets import LoadImagesAndLabels, img2label_paths
 import logging
 import os
 import sys
@@ -16,8 +18,6 @@ ROOT = FILE.parents[3]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 
-from utils.datasets import LoadImagesAndLabels, img2label_paths
-from utils.general import check_dataset, check_file
 
 try:
     import wandb
@@ -228,7 +228,7 @@ class WandbLogger():
                 config = self.wandb_run.config
                 opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp = str(
                     self.weights), config.save_period, config.batch_size, config.bbox_interval, config.epochs, \
-                                                                                                       config.hyp
+                    config.hyp
         data_dict = self.data_dict
         if self.val_artifact is None:  # If --upload_dataset is set, use the existing artifact, don't download
             self.train_artifact_path, self.train_artifact = self.download_dataset_artifact(data_dict.get('train'),
@@ -372,7 +372,7 @@ class WandbLogger():
         for i, data in enumerate(tqdm(self.val_table.data)):
             self.val_table_path_map[data[3]] = data[0]
 
-    def create_dataset_table(self, dataset: LoadImagesAndLabels, class_to_id: Dict[int,str], name: str = 'dataset'):
+    def create_dataset_table(self, dataset: LoadImagesAndLabels, class_to_id: Dict[int, str], name: str = 'dataset'):
         """
         Create and return W&B artifact containing W&B Table of the dataset.
 

@@ -100,7 +100,7 @@ class Annotator:
             offset_x = p3[0] + 20 * np.cos(ori)
             offset_y = p3[1] + 20 * np.sin(ori)
 
-            cv2.arrowedLine(self.im, p3, (int(offset_x), int(offset_y)), (255, 0, 255), 2)
+            # cv2.arrowedLine(self.im, p3, (int(offset_x), int(offset_y)), (255, 0, 255), 2)
             if label:
                 cv2.putText(self.im, label, (p3[0], p3[1] - 2), 0, self.lw /
                             7, txt_color, thickness=1, lineType=cv2.LINE_AA)

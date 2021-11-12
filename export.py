@@ -20,14 +20,6 @@ TensorFlow.js:
     $ npm start
 """
 
-from utils.torch_utils import select_device
-from utils.general import (LOGGER, check_dataset, check_img_size, check_requirements, colorstr, file_size, print_args,
-                           url2file)
-from utils.datasets import LoadImages
-from utils.activations import SiLU
-from models.yolo import Detect
-from models.experimental import attempt_load
-from models.common import Conv
 import argparse
 import json
 import os
@@ -39,6 +31,15 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.utils.mobile_optimizer import optimize_for_mobile
+
+from models.common import Conv
+from models.experimental import attempt_load
+from models.yolo import Detect
+from utils.activations import SiLU
+from utils.datasets import LoadImages
+from utils.general import (LOGGER, check_dataset, check_img_size, check_requirements, colorstr, file_size, print_args,
+                           url2file)
+from utils.torch_utils import select_device
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory

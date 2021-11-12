@@ -112,7 +112,7 @@ class ComputeLoss:
         self.ssi = list(det.stride).index(16) if autobalance else 0  # stride 16 index
         self.BCEcls, self.BCEobj, self.gr, self.hyp, self.autobalance = BCEcls, BCEobj, 1.0, h, autobalance
 
-        self.OriLoss = nn.L1Loss()
+        self.OriLoss = nn.HuberLoss()
         for k in 'na', 'nc', 'nl', 'anchors':
             setattr(self, k, getattr(det, k))
 
@@ -169,7 +169,7 @@ class ComputeLoss:
         lbox *= self.hyp['box']
         lobj *= self.hyp['obj']
         lcls *= self.hyp['cls']
-        lori *= 0
+        lori *= self.hyp['obj']
         bs = tobj.shape[0]  # batch size
 
         return (lbox + lobj + lcls + lori) * bs, torch.cat((lbox, lobj,

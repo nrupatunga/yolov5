@@ -40,10 +40,10 @@ class TFBN(keras.layers.Layer):
     def __init__(self, w=None):
         super().__init__()
         self.bn = keras.layers.BatchNormalization(
-            beta_initializer=keras.initializers.Constant(w.bias.cpu().numpy()),
-            gamma_initializer=keras.initializers.Constant(w.weight.cpu().numpy()),
-            moving_mean_initializer=keras.initializers.Constant(w.running_mean.cpu().numpy()),
-            moving_variance_initializer=keras.initializers.Constant(w.running_var.cpu().numpy()),
+            beta_initializer=keras.initializers.Constant(w.bias.numpy()),
+            gamma_initializer=keras.initializers.Constant(w.weight.numpy()),
+            moving_mean_initializer=keras.initializers.Constant(w.running_mean.numpy()),
+            moving_variance_initializer=keras.initializers.Constant(w.running_var.numpy()),
             epsilon=w.eps)
 
     def call(self, inputs):
@@ -71,8 +71,8 @@ class TFConv(keras.layers.Layer):
 
         conv = keras.layers.Conv2D(
             c2, k, s, 'SAME' if s == 1 else 'VALID', use_bias=False if hasattr(w, 'bn') else True,
-            kernel_initializer=keras.initializers.Constant(w.conv.weight.cpu().permute(2, 3, 1, 0).numpy()),
-            bias_initializer='zeros' if hasattr(w, 'bn') else keras.initializers.Constant(w.conv.bias.cpu().numpy()))
+            kernel_initializer=keras.initializers.Constant(w.conv.weight.permute(2, 3, 1, 0).numpy()),
+            bias_initializer='zeros' if hasattr(w, 'bn') else keras.initializers.Constant(w.conv.bias.numpy()))
         self.conv = conv if s == 1 else keras.Sequential([TFPad(autopad(k, p)), conv])
         self.bn = TFBN(w.bn) if hasattr(w, 'bn') else tf.identity
 
@@ -125,8 +125,8 @@ class TFConv2d(keras.layers.Layer):
         assert g == 1, "TF v2.2 Conv2D does not support 'groups' argument"
         self.conv = keras.layers.Conv2D(
             c2, k, s, 'VALID', use_bias=bias,
-            kernel_initializer=keras.initializers.Constant(w.weight.cpu().permute(2, 3, 1, 0).numpy()),
-            bias_initializer=keras.initializers.Constant(w.bias.cpu().numpy()) if bias else None, )
+            kernel_initializer=keras.initializers.Constant(w.weight.permute(2, 3, 1, 0).numpy()),
+            bias_initializer=keras.initializers.Constant(w.bias.numpy()) if bias else None, )
 
     def call(self, inputs):
         return self.conv(inputs)
@@ -200,13 +200,13 @@ class TFSPPF(keras.layers.Layer):
 class TFDetect(keras.layers.Layer):
     def __init__(self, nc=80, anchors=(), ch=(), imgsz=(640, 640), w=None):  # detection layer
         super().__init__()
-        self.stride = tf.convert_to_tensor(w.stride.cpu().numpy(), dtype=tf.float32)
+        self.stride = tf.convert_to_tensor(w.stride.numpy(), dtype=tf.float32)
         self.nc = nc  # number of classes
         self.no = nc + 6  # number of outputs per anchor
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
         self.grid = [tf.zeros(1)] * self.nl  # init grid
-        self.anchors = tf.convert_to_tensor(w.anchors.cpu().numpy(), dtype=tf.float32)
+        self.anchors = tf.convert_to_tensor(w.anchors.numpy(), dtype=tf.float32)
         self.anchor_grid = tf.reshape(self.anchors * tf.reshape(self.stride, [self.nl, 1, 1]),
                                       [self.nl, 1, -1, 1, 2])
         self.m = [TFConv2d(x, self.no * self.na, 1, w=w.m[i]) for i, x in enumerate(ch)]
@@ -277,6 +277,7 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
 
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
+        __import__('pdb').set_trace()
         m_str = m
         m = eval(m) if isinstance(m, str) else m  # eval strings
         for j, a in enumerate(args):
@@ -307,6 +308,7 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
             c2 = ch[f]
 
         tf_m = eval('TF' + m_str.replace('nn.', ''))
+        __import__('pdb').set_trace()
         m_ = keras.Sequential([tf_m(*args, w=model.model[i][j]) for j in range(n)]) if n > 1 \
             else tf_m(*args, w=model.model[i])  # module
 

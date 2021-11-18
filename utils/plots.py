@@ -96,7 +96,8 @@ class Annotator:
             # cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
             p3 = ((p1[0] + p2[0]) * 0.5, (p1[1] + p2[1]) * 0.5)
             p3 = (int(p3[0]), int(p3[1]))
-            cv2.circle(self.im, p3, radius=3, color=color, thickness=2)
+            # cv2.circle(self.im, p3, radius=3, color=color, thickness=2)
+            cv2.rectangle(self.im, p1, p2, color, thickness=1, lineType=cv2.LINE_AA)
             offset_x = p3[0] + 20 * np.cos(ori)
             offset_y = p3[1] + 20 * np.sin(ori)
 

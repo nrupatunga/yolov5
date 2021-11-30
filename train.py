@@ -252,8 +252,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     hyp['label_smoothing'] = opt.label_smoothing
     model.nc = nc  # attach number of classes to model
     model.hyp = hyp  # attach hyperparameters to model
-    model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
-    # model.class_weights = torch.ones(nc).to(device)
+    # model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
+    model.class_weights = torch.ones(nc).to(device)
     model.names = names
 
     # Start training

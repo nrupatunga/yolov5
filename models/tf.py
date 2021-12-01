@@ -22,7 +22,7 @@ import torch
 import torch.nn as nn
 from tensorflow import keras
 
-from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
+from models.common import C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
 from models.experimental import CrossConv, MixConv2d, attempt_load
 from models.yolo import Detect
 from utils.activations import SiLU
@@ -167,6 +167,69 @@ class TFC3(keras.layers.Layer):
         return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
 
 
+class TFTransformerLayer(keras.layers.Layer):
+    # Transformer layer https://arxiv.org/abs/2010.11929 (LayerNorm layers removed for better performance)
+    def __init__(self, c, num_heads, w=None):
+        super().__init__()
+        self.q = keras.layers.Dense(c,
+                                    kernel_initializer=keras.initializers.Constant(w.q.weight.numpy()),
+                                    use_bias=False)
+        self.k = keras.layers.Dense(c,
+                                    kernel_initializer=keras.initializers.Constant(w.k.weight.numpy()),
+                                    use_bias=False)
+        self.v = keras.layers.Dense(c,
+                                    kernel_initializer=keras.initializers.Constant(w.v.weight.numpy()),
+                                    use_bias=False)
+        self.ma = keras.layers.MultiHeadAttention(num_heads, c,
+                                                  kernel_initializer=keras.initializers.Constant(
+                                                      w.ma.out_proj.weight.numpy()),
+                                                  bias_initializer=keras.initializers.Constant(w.ma.out_proj.bias.numpy()))
+        self.fc1 = keras.layers.Dense(c,
+                                      kernel_initializer=keras.initializers.Constant(w.fc1.weight.numpy()),
+                                      use_bias=False)
+        self.fc2 = keras.layers.Dense(c,
+                                      kernel_initializer=keras.initializers.Constant(w.fc2.weight.numpy()),
+                                      use_bias=False)
+
+    def call(self, x):
+        x = self.ma(self.q(x), self.k(x), self.v(x))[0] + x
+        x = self.fc2(self.fc1(x)) + x
+        return x
+
+
+class TFTransformerBlock(keras.layers.Layer):
+    # Vision Transformer https://arxiv.org/abs/2010.11929
+    def __init__(self, c1, c2, num_heads, num_layers, w=None):
+        super().__init__()
+        self.conv = None
+        if c1 != c2:
+            self.conv = TFConv(c1, c2, 1, 1)
+
+        self.linear = keras.layers.Dense(c2,
+                                         kernel_initializer=keras.initializers.Constant(w.linear.weight.numpy()),
+                                         bias_initializer=keras.initializers.Constant(w.linear.bias.numpy()))
+        self.tr = keras.Sequential(*(TFTransformerLayer(c2, num_heads,
+                                                        w.tr[i]) for i in range(num_layers)))
+        self.c2 = c2
+
+    def forward(self, x):
+        if self.conv is not None:
+            x = self.conv(x)
+        b, _, w, h = x.shape
+        p = x.flatten(2).unsqueeze(0).transpose(0, 3).squeeze(3)
+        return self.tr(p + self.linear(p)).unsqueeze(3).transpose(0, 3).reshape(b, self.c2, w, h)
+
+
+class TFC3TR(TFC3):
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, w=None):
+        super().__init__(c1, c2, n - 1, shortcut, g, e, w)
+        c_ = int(c2 * e)
+        self.m = TFTransformerBlock(c_, c_, 4, n, w.m)
+
+    def call(self, inputs):
+        return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
+
+
 class TFSPP(keras.layers.Layer):
     # Spatial pyramid pooling layer used in YOLOv3-SPP
     def __init__(self, c1, c2, k=(5, 9, 13), w=None):
@@ -202,7 +265,8 @@ class TFDetect(keras.layers.Layer):
         super().__init__()
         self.stride = tf.convert_to_tensor(w.stride.numpy(), dtype=tf.float32)
         self.nc = nc  # number of classes
-        self.no = nc + 6  # number of outputs per anchor
+        # self.no = nc + 6  # number of outputs per anchor
+        self.no = nc + 5  # number of outputs per anchor
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
         self.grid = [tf.zeros(1)] * self.nl  # init grid
@@ -286,14 +350,17 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
                 pass
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m in [nn.Conv2d, Conv, Bottleneck, SPP, SPPF, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP, C3]:
+        if m in [nn.Conv2d, Conv, Bottleneck, SPP, SPPF, DWConv,
+                 MixConv2d, Focus, CrossConv, BottleneckCSP, C3, C3TR]:
+
             c1, c2 = ch[f], args[0]
             c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3]:
+            if m in [BottleneckCSP, C3, C3TR]:
                 args.insert(2, n)
                 n = 1
+
         elif m is nn.BatchNorm2d:
             args = [ch[f]]
         elif m is Concat:

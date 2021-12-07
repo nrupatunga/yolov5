@@ -180,7 +180,9 @@ class TFTransformerLayer(keras.layers.Layer):
         self.v = keras.layers.Dense(c,
                                     kernel_initializer=keras.initializers.Constant(w.v.weight.numpy()),
                                     use_bias=False)
+        __import__('pdb').set_trace()
         self.ma = keras.layers.MultiHeadAttention(num_heads, c,
+                                                  value_dim=c,
                                                   kernel_initializer=keras.initializers.Constant(
                                                       w.ma.out_proj.weight.numpy()),
                                                   bias_initializer=keras.initializers.Constant(w.ma.out_proj.bias.numpy()))
@@ -192,7 +194,8 @@ class TFTransformerLayer(keras.layers.Layer):
                                       use_bias=False)
 
     def call(self, x):
-        x = self.ma(self.q(x), self.k(x), self.v(x))[0] + x
+        __import__('pdb').set_trace()
+        x = self.ma(self.q(x), self.v(x), key=self.k(x))[0] + x
         x = self.fc2(self.fc1(x)) + x
         return x
 
@@ -208,16 +211,23 @@ class TFTransformerBlock(keras.layers.Layer):
         self.linear = keras.layers.Dense(c2,
                                          kernel_initializer=keras.initializers.Constant(w.linear.weight.numpy()),
                                          bias_initializer=keras.initializers.Constant(w.linear.bias.numpy()))
-        self.tr = keras.Sequential(*(TFTransformerLayer(c2, num_heads,
-                                                        w.tr[i]) for i in range(num_layers)))
+        # self.tr = keras.Sequential(*(TFTransformerLayer(c2, num_heads, # w.tr[i]) for i in range(num_layers)))
+        self.tr = keras.Sequential([TFTransformerLayer(c2, num_heads,
+                                                       w.tr[i]) for i in range(num_layers)])
         self.c2 = c2
 
-    def forward(self, x):
+    def call(self, x):
         if self.conv is not None:
             x = self.conv(x)
-        b, _, w, h = x.shape
-        p = x.flatten(2).unsqueeze(0).transpose(0, 3).squeeze(3)
-        return self.tr(p + self.linear(p)).unsqueeze(3).transpose(0, 3).reshape(b, self.c2, w, h)
+        b, w, h, ch = x.shape
+        p = keras.layers.Reshape((w * h, ch))(x)
+        # p = tf.expand_dims(p, 0)
+        # p = tf.transpose(p, perm=(0, 2, 1))
+        p = self.tr(p + self.linear(p))
+        p = tf.squeeze(tf.transpose(tf.expand_dims(p, 0), perm=(0, 3)), 3)
+        return p
+        # p = x.flatten(2).unsqueeze(0).transpose(0, 3).squeeze(3)
+        # return self.tr(p + self.linear(p)).unsqueeze(3).transpose(0, 3).reshape(b, self.c2, w, h)
 
 
 class TFC3TR(TFC3):
@@ -225,9 +235,6 @@ class TFC3TR(TFC3):
         super().__init__(c1, c2, n - 1, shortcut, g, e, w)
         c_ = int(c2 * e)
         self.m = TFTransformerBlock(c_, c_, 4, n, w.m)
-
-    def call(self, inputs):
-        return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
 
 
 class TFSPP(keras.layers.Layer):
@@ -291,8 +298,8 @@ class TFDetect(keras.layers.Layer):
 
             if not self.training:  # inference
                 y = tf.sigmoid(x[i])
-                xy = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-                wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]
+                xy = (y[..., 0: 2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
+                wh = (y[..., 2: 4] * 2) ** 2 * self.anchor_grid[i]
                 # Normalize xywh to 0-1 to reduce calibration error
                 xy /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
                 wh /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
@@ -301,7 +308,7 @@ class TFDetect(keras.layers.Layer):
 
         return x if self.training else (tf.concat(z, 1), x)
 
-    @staticmethod
+    @ staticmethod
     def _make_grid(nx=20, ny=20):
         # yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)])
         # return torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float()
@@ -378,7 +385,7 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
             else tf_m(*args, w=model.model[i])  # module
 
         torch_m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
-        t = str(m)[8:-2].replace('__main__.', '')  # module type
+        t = str(m)[8: -2].replace('__main__.', '')  # module type
         np = sum(x.numel() for x in torch_m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
         LOGGER.info(f'{i:>3}{str(f):>18}{str(n):>3}{np:>10}  {t:<40}{str(args):<30}')  # print
@@ -418,8 +425,8 @@ class TFModel:
 
         # Add TensorFlow NMS
         if tf_nms:
-            boxes = self._xywh2xyxy(x[0][..., :4])
-            probs = x[0][:, :, 4:5]
+            boxes = self._xywh2xyxy(x[0][..., : 4])
+            probs = x[0][:, :, 4: 5]
             classes = x[0][:, :, 5:]
             scores = probs * classes
             if agnostic_nms:
@@ -438,7 +445,7 @@ class TFModel:
         # cls = tf.reshape(tf.cast(tf.argmax(x[..., 5:], axis=1), tf.float32), (-1, 1))  # x(6300,1)  classes
         # return tf.concat([conf, cls, xywh], 1)
 
-    @staticmethod
+    @ staticmethod
     def _xywh2xyxy(xywh):
         # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
         x, y, w, h = tf.split(xywh, num_or_size_splits=4, axis=-1)
@@ -453,7 +460,7 @@ class AgnosticNMS(keras.layers.Layer):
                          fn_output_signature=(tf.float32, tf.float32, tf.float32, tf.int32),
                          name='agnostic_nms')
 
-    @staticmethod
+    @ staticmethod
     def _nms(x, topk_all=100, iou_thres=0.45, conf_thres=0.25):  # agnostic NMS
         boxes, classes, scores = x
         class_inds = tf.cast(tf.argmax(classes, axis=-1), tf.float32)

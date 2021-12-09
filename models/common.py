@@ -146,6 +146,17 @@ class C3TR(C3):
         self.m = TransformerBlock(c_, c_, 4, n)
 
 
+class C3NB(C3):
+    # C3 module without Bottleneck
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        c_ = int(c2 * e)
+        self.m = None
+
+    def forward(self, x):
+        return self.cv3(torch.cat(self.cv1(x), self.cv2(x)), dim=1)
+
+
 class C3SPP(C3):
     # C3 module with SPP()
     def __init__(self, c1, c2, k=(5, 9, 13), n=1, shortcut=True, g=1, e=0.5):

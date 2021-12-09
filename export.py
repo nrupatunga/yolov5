@@ -46,12 +46,6 @@ import torch
 import torch.nn as nn
 from torch.utils.mobile_optimizer import optimize_for_mobile
 
-FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-
 from models.common import Conv
 from models.experimental import attempt_load
 from models.yolo import Detect
@@ -60,6 +54,12 @@ from utils.datasets import LoadImages
 from utils.general import (LOGGER, check_dataset, check_img_size, check_requirements, colorstr, file_size, print_args,
                            url2file)
 from utils.torch_utils import select_device
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[0]  # YOLOv5 root directory
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:')):
@@ -243,7 +243,7 @@ def export_tfjs(keras_model, im, file, prefix=colorstr('TensorFlow.js:')):
         f_json = f + '/model.json'  # *.json path
 
         cmd = f"tensorflowjs_converter --input_format=tf_frozen_model " \
-              f"--output_node_names='Identity,Identity_1,Identity_2,Identity_3' {f_pb} {f}"
+            f"--output_node_names='Identity,Identity_1,Identity_2,Identity_3' {f_pb} {f}"
         subprocess.run(cmd, shell=True)
 
         json = open(f_json).read()

@@ -21,7 +21,7 @@ import torch
 import torch.nn as nn
 from tensorflow import keras
 
-from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
+from models.common import C3, C3NB, SPP, SPPF, Bottleneck, BottleneckCSP, Concat, Conv, DWConv, Focus, autopad
 from models.experimental import CrossConv, MixConv2d, attempt_load
 from models.yolo import Detect
 from utils.activations import SiLU
@@ -166,8 +166,17 @@ class TFC3(keras.layers.Layer):
         return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
 
 
+# class TFC3NB(TFC3):
+    # # CSP Bottleneck with 3 convolutions
+    # def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, w=None):
+        # # ch_in, ch_out, number, shortcut, groups, expansion
+        # __import__('pdb').set_trace()
+        # super().__init__(c1, c2, n, shortcut, g, e, w)
+        # c_ = int(c2 * e)
+        # self.m = tf.identity
+
+
 class TFC3NB(keras.layers.Layer):
-    # CSP Bottleneck with 3 convolutions
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, w=None):
         # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__()
@@ -175,7 +184,7 @@ class TFC3NB(keras.layers.Layer):
         self.cv1 = TFConv(c1, c_, 1, 1, w=w.cv1)
         self.cv2 = TFConv(c1, c_, 1, 1, w=w.cv2)
         self.cv3 = TFConv(2 * c_, c2, 1, 1, w=w.cv3)
-        self.m = nn.Identity()
+        self.m = tf.identity
 
     def call(self, inputs):
         return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
@@ -251,7 +260,7 @@ class TFDetect(keras.layers.Layer):
 
         return x if self.training else (tf.concat(z, 1), x)
 
-    @staticmethod
+    @ staticmethod
     def _make_grid(nx=20, ny=20):
         # yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)])
         # return torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float()
@@ -300,12 +309,13 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
                 pass
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m in [nn.Conv2d, Conv, Bottleneck, SPP, SPPF, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP, C3]:
+        if m in [nn.Conv2d, Conv, Bottleneck, SPP, SPPF, DWConv,
+                 MixConv2d, Focus, CrossConv, BottleneckCSP, C3, C3NB]:
             c1, c2 = ch[f], args[0]
             c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3]:
+            if m in [BottleneckCSP, C3, C3NB]:
                 args.insert(2, n)
                 n = 1
         elif m is nn.BatchNorm2d:

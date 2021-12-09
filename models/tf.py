@@ -15,12 +15,6 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
-FILE = Path(__file__).resolve()
-ROOT = FILE.parents[1]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
-# ROOT = ROOT.relative_to(Path.cwd())  # relative
-
 import numpy as np
 import tensorflow as tf
 import torch
@@ -32,6 +26,12 @@ from models.experimental import CrossConv, MixConv2d, attempt_load
 from models.yolo import Detect
 from utils.activations import SiLU
 from utils.general import LOGGER, make_divisible, print_args
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[1]  # YOLOv5 root directory
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+# ROOT = ROOT.relative_to(Path.cwd())  # relative
 
 
 class TFBN(keras.layers.Layer):
@@ -161,6 +161,21 @@ class TFC3(keras.layers.Layer):
         self.cv2 = TFConv(c1, c_, 1, 1, w=w.cv2)
         self.cv3 = TFConv(2 * c_, c2, 1, 1, w=w.cv3)
         self.m = keras.Sequential([TFBottleneck(c_, c_, shortcut, g, e=1.0, w=w.m[j]) for j in range(n)])
+
+    def call(self, inputs):
+        return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))
+
+
+class TFC3NB(keras.layers.Layer):
+    # CSP Bottleneck with 3 convolutions
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, w=None):
+        # ch_in, ch_out, number, shortcut, groups, expansion
+        super().__init__()
+        c_ = int(c2 * e)  # hidden channels
+        self.cv1 = TFConv(c1, c_, 1, 1, w=w.cv1)
+        self.cv2 = TFConv(c1, c_, 1, 1, w=w.cv2)
+        self.cv3 = TFConv(2 * c_, c2, 1, 1, w=w.cv3)
+        self.m = nn.Identity()
 
     def call(self, inputs):
         return self.cv3(tf.concat((self.m(self.cv1(inputs)), self.cv2(inputs)), axis=3))

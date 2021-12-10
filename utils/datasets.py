@@ -549,7 +549,7 @@ class LoadImagesAndLabels(Dataset):
         desc = f"{prefix}Scanning '{path.parent / path.stem}' images and labels..."
 
         # verify_image_label([self.img_files[0], self.label_files[0],
-                            # repeat(prefix)])
+        # repeat(prefix)])
         with Pool(NUM_THREADS) as pool:
             pbar = tqdm(pool.imap(verify_image_label, zip(self.img_files, self.label_files, repeat(prefix))),
                         desc=desc, total=len(self.img_files))
@@ -1006,10 +1006,10 @@ def verify_image_label(args):
                     msg = f'{prefix}WARNING: {im_file}: {nl - len(i)} duplicate labels removed'
             else:
                 ne = 1  # label empty
-                l = np.zeros((0, 5), dtype=np.float32)
+                l = np.zeros((0, 6), dtype=np.float32)
         else:
             nm = 1  # label missing
-            l = np.zeros((0, 5), dtype=np.float32)
+            l = np.zeros((0, 6), dtype=np.float32)
         return im_file, l, shape, segments, nm, nf, ne, nc, msg
     except Exception as e:
         nc = 1

@@ -44,7 +44,7 @@ class Loggers():
                      'train/cls_loss', 'train/ori_loss',  # train loss
                      'metrics/precision', 'metrics/recall', 'metrics/mAP_0.5', 'metrics/mAP_0.5:0.95',  # metrics
                      'val/box_loss', 'val/obj_loss', 'val/cls_loss',
-                     'val/ori_loss', # val loss
+                     'val/ori_loss',  # val loss
                      'x/lr0', 'x/lr1', 'x/lr2']  # params
         for k in LOGGERS:
             setattr(self, k, None)  # init empty logger dictionary

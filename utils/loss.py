@@ -175,6 +175,17 @@ class ComputeLoss:
         return (lbox + lobj + lcls + lori) * bs, torch.cat((lbox, lobj,
                                                             lcls, lori)).detach()
 
+    def build_gridcell(self, gij, wh):
+        import cv2
+        import numpy as np
+        gij = gij.cpu().numpy()
+        gi, gj = gij.T  # grid xy indices
+        dbg_img = np.zeros((wh, wh))
+        for i, j in zip(gi, gj):
+            dbg_img[[i, j]] = 255
+        dbg_img = np.int0(dbg_img)
+        cv2.imwrite(f'{wh}.png', dbg_img)
+
     def build_targets(self, p, targets):
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
         na, nt = self.na, targets.shape[0]  # number of anchors, targets

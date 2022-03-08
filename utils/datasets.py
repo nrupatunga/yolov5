@@ -548,8 +548,6 @@ class LoadImagesAndLabels(Dataset):
         nm, nf, ne, nc, msgs = 0, 0, 0, 0, []
         desc = f"{prefix}Scanning '{path.parent / path.stem}' images and labels..."
 
-        # verify_image_label([self.img_files[0], self.label_files[0],
-        # repeat(prefix)])
         with Pool(NUM_THREADS) as pool:
             pbar = tqdm(pool.imap(verify_image_label, zip(self.img_files, self.label_files, repeat(prefix))),
                         desc=desc, total=len(self.img_files))

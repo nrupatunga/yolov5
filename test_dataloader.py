@@ -13,7 +13,7 @@ hyp = './data/hyps/hyp.scratch.yaml'
 with open(hyp, errors='ignore') as f:
     hyp = yaml.safe_load(f)  # load hyps dict
 
-root_dir = '/home/nthere/2021/yolov5/data/simreal'
+root_dir = '/media/nthere/work/ml/datasets/dummy/yolo/'
 train_loader, dataset = create_dataloader(root_dir,
                                           imgsz,
                                           batch_size,
@@ -28,15 +28,17 @@ names = ['whole', 'half', 'third', 'fourth', 'sixth', 'eighth']
 for i, (imgs, targets, paths, _) in pbar:
     labels = targets[:, 1]
     boxes = targets[:, 2:6]
+    oris = targets[:, -1]
     annotator = Annotator(np.ascontiguousarray(np.transpose(imgs[0].numpy(), (1, 2,
                                                                               0))))
     boxes = boxes * 256
     boxes = xywh2xyxy(boxes)
 
-    for box, label in zip(boxes, labels):
+    for box, label, ori in zip(boxes, labels, oris):
         cls = int(label.item())
         label = names[cls]
-        annotator.box_label(box, label, color=colors(cls, True))
+        annotator.box_label(box, ori, label, color=colors(cls, True))
         im0 = annotator.result()
+
     cv2.imshow('input', im0)
     cv2.waitKey(0)  # 1 millisecond

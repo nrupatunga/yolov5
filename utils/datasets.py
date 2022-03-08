@@ -25,7 +25,8 @@ from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
+from utils.augmentations import (Albumentations, PlanckianJitter, augment_hsv, copy_paste, letterbox, mixup,
+                                 random_perspective)
 from utils.general import (LOGGER, check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, xyn2xy,
                            xywh2xyxy, xywhn2xyxy, xyxy2xywhn)
 from utils.torch_utils import torch_distributed_zero_first
@@ -110,8 +111,8 @@ def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=Non
                                       prefix=prefix)
 
     batch_size = min(batch_size, len(dataset))
-    nw = min([os.cpu_count(), batch_size if batch_size >
-              1 else 0, workers])  # number of workers
+    nw = min([os.cpu_count(), batch_size if batch_size
+              > 1 else 0, workers])  # number of workers
     sampler = torch.utils.data.distributed.DistributedSampler(
         dataset) if rank != -1 else None
     loader = torch.utils.data.DataLoader if image_weights else InfiniteDataLoader
@@ -640,6 +641,7 @@ class LoadImagesAndLabels(Dataset):
             img, labels = self.albumentations(img, labels)
             nl = len(labels)  # update after albumentations
 
+            img = PlanckianJitter()(img)
             # HSV color-space
             augment_hsv(img, hgain=hyp['hsv_h'],
                         sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
@@ -893,8 +895,8 @@ def flatten_recursive(path='../datasets/coco128'):
 def extract_boxes(path='../datasets/coco128'):
     # Convert detection dataset into classification dataset, with one directory per class
     path = Path(path)  # images dir
-    shutil.rmtree(path / 'classifier') if (path /
-                                           'classifier').is_dir() else None  # remove existing
+    shutil.rmtree(path / 'classifier') if (path
+                                           / 'classifier').is_dir() else None  # remove existing
     files = list(path.rglob('*.*'))
     n = len(files)  # number of files
     for im_file in tqdm(files, total=n):
